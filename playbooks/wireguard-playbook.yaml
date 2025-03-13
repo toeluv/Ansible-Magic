@@ -1,0 +1,4 @@
+- hosts: control, macos
+  roles:
+    - wireguard
+  become: yes

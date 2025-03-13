@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: ini
+  description: Установка k3s и Helm на Debian/Ubuntu
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+        - bookworm
+
+dependencies: []

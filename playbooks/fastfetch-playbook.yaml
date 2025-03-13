@@ -1,0 +1,58 @@
+---
+- name: Install fastfetch deb
+  hosts: control, macos
+  become: yes
+  tasks:
+    - name: Set architecture fact
+      ansible.builtin.command: dpkg --print-architecture
+      register: dpkg_arch
+      changed_when: false
+
+    - name: Set architecture fact for arm64
+      ansible.builtin.set_fact:
+        arch: aarch64
+      when: dpkg_arch.stdout == "arm64"
+
+    - name: Set architecture fact for amd64
+      ansible.builtin.set_fact:
+        arch: amd64
+      when: dpkg_arch.stdout == "amd64"
+
+    - name: download fastfetch .deb
+      ansible.builtin.get_url:
+        url: "https://github.com/fastfetch-cli/fastfetch/releases/download/2.34.1/fastfetch-linux-{{ arch }}.deb"
+        dest: "/tmp/fastfetch-linux-{{ arch }}.deb"
+
+    - name: install fastfetch from .deb
+      ansible.builtin.apt:
+        deb: "/tmp/fastfetch-linux-{{ arch }}.deb"
+
+    - name: delete .deb package
+      ansible.builtin.file:
+        path: "/tmp/fastfetch-linux-{{ arch }}.deb"
+        state: absent
+
+    - name: check installation result
+      ansible.builtin.command: which fastfetch
+      register: fastfetch_check
+      ignore_errors: yes
+
+    - name: Get list of all users
+      ansible.builtin.shell: |
+        getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'
+      register: all_users
+      become: no
+
+    - name: Add fastfetch to each user's .bashrc
+      ansible.builtin.lineinfile:
+        path: "/home/{{ item }}/.bashrc"
+        line: "fastfetch"
+        create: yes
+        insertafter: EOF
+      loop: "{{ all_users.stdout_lines }}"
+      when: fastfetch_check.rc == 0
+
+    - name: error log if fastfetch is not installed
+      ansible.builtin.debug:
+        msg: "Fastfetch is not installed, skip adding to .bashrc"
+      when: fastfetch_check.rc != 0

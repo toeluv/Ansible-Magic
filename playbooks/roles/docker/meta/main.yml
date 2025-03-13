@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: ini
+  description: Installing Docker & Docker Compose
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+        - bookworm
+
+dependencies: []

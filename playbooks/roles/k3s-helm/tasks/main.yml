@@ -1,0 +1,68 @@
+---
+- name: Установка k3s
+  shell: |
+    curl -sfL https://get.k3s.io | sh -
+  args:
+    creates: /usr/local/bin/k3s 
+  become: yes
+
+- name: Set permissions
+  shell: chmod +X /etc/rancher/k3s
+  become: yes
+  
+- name: Создание директории .kube
+  file:
+    path: /home/{{ k3s_user }}/.kube/config
+    state: directory
+    owner: "{{ k3s_user }}"
+    group: "{{ k3s_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Копирование kubeconfig для текущего пользователя
+  copy:
+    src: /etc/rancher/k3s
+    dest: /home/{{ k3s_user }}/.kube/config
+    owner: "{{ k3s_user }}"
+    group: "{{ k3s_user }}"
+    mode: '0600'
+    remote_src: yes  
+  become: yes
+
+- name: Скачивание и установка Helm
+  get_url:
+    url: "https://get.helm.sh/helm-v{{ helm_version }}-linux-amd64.tar.gz"
+    dest: "/tmp/helm-v{{ helm_version }}-linux-amd64.tar.gz"
+    mode: '0755'
+
+- name: Распаковка Helm
+  unarchive:
+    src: "/tmp/helm-v{{ helm_version }}-linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+
+- name: Установка Helm в /usr/local/bin
+  copy:
+    src: "/tmp/linux-amd64/helm"
+    dest: "/usr/local/bin/helm"
+    mode: '0755'
+    remote_src: yes
+  become: yes
+
+- name: Очистка временных файлов Helm
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/linux-*"
+    - "/tmp/helm-v{{ helm_version }}-linux-amd64.tar.gz"
+  ignore_errors: yes
+
+- name: Инициализация Helm
+  shell: |
+    helm repo add stable https://charts.helm.sh/stable
+    helm repo update
+  args:
+    creates: ~{{ k3s_user }}/.config/helm/repositories.lock  # Проверка, чтобы не повторять инициализацию
+  environment:
+    KUBECONFIG: ~{{ k3s_user }}/.kube/config
