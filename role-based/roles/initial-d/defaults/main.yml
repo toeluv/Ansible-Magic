@@ -1,0 +1,15 @@
+---
+username: "ear"
+
+user_password: "{{ '123' | password_hash('sha512') }}"
+
+ssh_public_key_path: "~/.ssh/id_rsa.pub"
+
+packages:
+  - sudo
+  - curl
+  - git
+  - neovim
+  - htop
+  - ufw
+  - nvim

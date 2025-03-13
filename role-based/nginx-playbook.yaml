@@ -1,0 +1,37 @@
+---
+- name: nginx playbook
+  hosts: control, macos
+  become: yes 
+  tasks:
+    - name: installing nginx
+      apt:
+        name: nginx
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: create index.html
+      copy:
+        content: |
+          <html>
+            <body>
+              <h1>hello from ansible</h1>
+            </body>
+          </html>
+        dest: /var/www/html/index.html
+        owner: ear
+        mode: '0644'
+
+    - name: start nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: check nginx status
+      command: systemctl status nginx
+      register: nginx_status
+      ignore_errors: yes
+
+    - name: nginx status logs
+      debug:
+        var: nginx_status.stdout_lines

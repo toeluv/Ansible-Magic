@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: ini
+  description: Role for setting up a fresh Ubuntu system
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - lunar
+
+dependencies: []

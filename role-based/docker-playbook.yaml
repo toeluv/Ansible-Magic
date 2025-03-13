@@ -1,0 +1,7 @@
+---
+- hosts: control, macos
+  become: yes
+  vars:
+    docker_user: ear
+  roles:
+    - docker

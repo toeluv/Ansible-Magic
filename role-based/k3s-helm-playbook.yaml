@@ -1,0 +1,5 @@
+---
+- hosts: control, macos
+  become: yes
+  roles:
+    - k3s-helm
