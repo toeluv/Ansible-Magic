@@ -1,0 +1,86 @@
+---
+- name: Set up WireGuard
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update and install WireGuard and iptables
+      ansible.builtin.apt:
+        pkg:
+          - wireguard
+          - wireguard-tools
+          - iptables
+        state: latest
+        update_cache: true
+
+    - name: Add required kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - nf_conntrack
+        - wireguard
+
+    - name: Enable IP forwarding
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: "1"
+        sysctl_set: true
+        state: present
+        reload: true
+      loop:
+        - net.ipv4.ip_forward
+        - net.ipv4.conf.all.forwarding
+        - net.ipv6.conf.all.forwarding
+
+    - name: Set nf_conntrack_max
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: "1048576"
+        sysctl_set: true
+        state: present
+        reload: true
+      loop:
+        - net.netfilter.nf_conntrack_max
+        - net.nf_conntrack_max
+
+    - name: Generate server private and public keys
+      ansible.builtin.shell: |
+        wg genkey | tee /etc/wireguard/server-private.key | wg pubkey >/etc/wireguard/server-public.key
+        cat /etc/wireguard/server-private.key
+      changed_when: false
+      failed_when: false
+      register: wireguard_server_private_key
+
+    - name: Get server public key
+      ansible.builtin.command: cat /etc/wireguard/server-public.key
+      changed_when: false
+      failed_when: false
+      register: wireguard_server_public_key
+
+    - name: Generate client private and public keys
+      ansible.builtin.shell: |
+        wg genkey | tee /etc/wireguard/client-private.key | wg pubkey >/etc/wireguard/client-public.key
+        cat /etc/wireguard/client-private.key
+      changed_when: false
+      failed_when: false
+      register: wireguard_client_private_key
+
+    - name: Get client public key
+      ansible.builtin.command: cat /etc/wireguard/client-public.key
+      changed_when: false
+      failed_when: false
+      register: wireguard_client_public_key
+
+    - name: Create WireGuard configuration file
+      ansible.builtin.template:
+        src: wg0.conf.j2
+        dest: /etc/wireguard/wg0.conf
+        owner: root
+        group: root
+      notify: Restart WireGuard
+
+  handlers:
+    - name: Restart WireGuard
+      ansible.builtin.service:
+        name: wg-quick@wg0
+        state: restarted

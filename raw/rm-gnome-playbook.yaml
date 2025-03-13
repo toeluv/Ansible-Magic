@@ -1,0 +1,49 @@
+---
+- name: Remove GNOME and its components
+  hosts: all
+  become: yes
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Remove GNOME and its components
+      ansible.builtin.apt:
+        name:
+          - gnome-shell
+          - gnome-session
+          - gdm3
+          - gnome
+        state: absent
+        purge: yes
+      when: >
+        'gnome-shell' in ansible_facts.packages or
+        'gnome-session' in ansible_facts.packages or
+        'gdm3' in ansible_facts.packages or
+        'gnome' in ansible_facts.packages
+
+    - name: Remove unused dependencies
+      ansible.builtin.apt:
+        autoremove: yes
+        purge: yes
+
+    - name: Remove GNOME-related configuration files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "~/.gnome"
+        - "~/.gnome2"
+        - "~/.gconf"
+        - "~/.gconfd"
+        - "~/.config/gnome-session"
+
+    - name: Set default runlevel to multi-user (text mode)
+      ansible.builtin.command:
+        cmd: systemctl set-default multi-user.target
+
+    - name: Notify handler to reboot the system
+      ansible.builtin.meta: flush_handlers
+
+    - name: Reboot the server (if required)
+      reboot:
