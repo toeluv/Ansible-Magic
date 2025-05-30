@@ -1,5 +1,5 @@
 ---
-- name: Configure prompt and colorful aliases
+- name: Configure bash shell, prompt and aliases
   hosts: control, macos
   become: yes
   tasks:
@@ -10,31 +10,43 @@
       become: no
       ignore_errors: yes
 
-    - name: Configure prompt for each user
-      ansible.builtin.lineinfile:
-        path: "/home/{{ item }}/.bashrc"
-        line: "PS1='\[\e[35m\][\u@\h \]\[\e[37m\]\w\[\e[35m\]]\[\e[0m\]\$'"
-        create: yes
-        insertafter: EOF
+    - name: Ensure bash is installed
+      ansible.builtin.package:
+        name: bash
+        state: present
+
+    - name: Set bash as default shell for each user
+      ansible.builtin.user:
+        name: "{{ item }}"
+        shell: /bin/bash
       loop: "{{ all_users.stdout_lines }}"
       when: all_users is succeeded
 
-    - name: Add color aliases to each user's .bashrc
+    - name: Configure .bashrc for each user
       ansible.builtin.blockinfile:
         path: "/home/{{ item }}/.bashrc"
         block: |
+          # Set colorful prompt
+          PS1='\[\e[35m\][\u@\h \]\[\e[37m\]\w\[\e[35m\]]\[\e[0m\]\$ '
+          
           # enable color support of ls and also add handy aliases
           if [ -x /usr/bin/dircolors ]; then
               test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
               alias ls='ls --color=auto'
               alias dir='dir --color=auto'
               alias vdir='vdir --color=auto'
-
               alias grep='grep --color=auto'
               alias fgrep='fgrep --color=auto'
               alias egrep='egrep --color=auto'
           fi
         create: yes
-        insertafter: EOF
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - bash config"
       loop: "{{ all_users.stdout_lines }}"
       when: all_users is succeeded
+
+    - name: Ensure bash is default for new users
+      ansible.builtin.lineinfile:
+        path: /etc/default/useradd
+        regexp: '^SHELL='
+        line: 'SHELL=/bin/bash'
+        create: yes
