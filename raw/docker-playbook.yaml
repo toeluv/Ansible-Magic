@@ -1,9 +1,8 @@
----
 - name: Install Docker and Docker Compose (Debian)
   hosts: all
   become: yes
   vars:
-    docker_user: "your_user"  # Replace with the actual username to add to the Docker group
+    docker_user: "ini"
   tasks:
     - name: Install dependencies
       apt:
@@ -16,15 +15,23 @@
         state: present
         update_cache: yes
 
-    - name: Add Docker GPG key
-      apt_key:
-        url: https://download.docker.com/linux/debian/gpg
-        state: present
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
 
-    - name: Add Docker repository for Debian
+    - name: Download Docker GPG key and store in keyring
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
+
+    - name: Add Docker repository with signed-by
       apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable"
         state: present
+        filename: docker-ce
         update_cache: yes
 
     - name: Install Docker
@@ -33,6 +40,7 @@
           - docker-ce
           - docker-ce-cli
           - containerd.io
+          - docker-compose-plugin-
         state: present
         update_cache: yes
 
@@ -41,21 +49,6 @@
         name: docker
         state: started
         enabled: yes
-
-    - name: Install Docker Compose
-      get_url:
-        url: https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-linux-x86_64
-        dest: /usr/local/bin/docker-compose
-        mode: '0755'
-
-    - name: Check Docker Compose version
-      command: docker-compose --version
-      register: docker_compose_version
-      changed_when: false
-
-    - name: Display Docker Compose version
-      debug:
-        msg: "{{ docker_compose_version.stdout }}"
 
     - name: Add user to Docker group
       user:
